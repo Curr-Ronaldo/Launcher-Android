@@ -46,10 +46,19 @@ import kotlin.system.exitProcess
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PorterDuff
+import java.io.FileWriter
+import java.io.BufferedWriter
+import java.io.IOException
+import java.util.Date
+import java.text.SimpleDateFormat
+import org.json.JSONException
 
 class Hook {
 
     // just for login
+    private val package_apk = "com.miHoYo.YuukiPS"
+    private val path = "/sdcard/Android/data/${package_apk}"
+    private val file_json = "/sdcard/Download/YuukiPS/server.json"
     private val proxyListRegex = arrayListOf( 
         // CN
         "dispatchcnglobal.yuanshen.com",
@@ -152,49 +161,204 @@ class Hook {
     @SuppressLint("WrongConstant", "ClickableViewAccessibility")
     fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
 
-        XposedBridge.log("Hi Yuuki")
-        XposedBridge.log("Load: "+lpparam.packageName)
+        log_print("\n\n=====================================\nDATE: ${Date()}\n=====================================\nNew Log")
 
-        if (lpparam.packageName == "com.miHoYo.GenshinImpact") {
-            XposedBridge.log("found it")
+        log_print("Hi Yuuki")
+        log_print("Load: "+lpparam.packageName)
+
+        if (lpparam.packageName == "${package_apk}") {
+
+            log_print("Package found: ${lpparam.packageName}")
             EzXHelperInit.initHandleLoadPackage(lpparam) // idk what this?
+
             // json for get server
-            val z3ro = File("/sdcard/Android/data/com.miHoYo.GenshinImpact/files/server.json")
-            textJson = "{\n\t\"server\": \"https://genshin.ps.yuuki.me\",\n\t\"showText\": true,\n\t\"Note\": \"Always use https:// or http://, you can add port using : after server... EXAMPLE: https://genshin.ps.yuuki.me:443\"\n}"
-            if (z3ro.exists()) {
-                val z3roJson = JSONObject(z3ro.readText())
-                server = z3roJson.getString("server")
-                XposedBridge.log("server: "+server)
-            } else {
-                z3ro.writeText(textJson)
-                server = "https://genshin.ps.yuuki.me"
-                XposedBridge.log("server.json not found, created")
+            val z3ro = File(file_json)
+            try {
+                if (z3ro.exists()) {
+                    val z3roJson = JSONObject(z3ro.readText())
+                    server = z3roJson.getString("server")
+                    log_print("server : $server")
+                } else {
+                    log_print("server.json not found.")
+                    server = "https://genshin.ps.yuuki.me"
+                    z3ro.createNewFile()
+                    z3ro.writeText(TextJSON(server))
+                    log_print("New server.json created")
+                }
+            } catch (e: JSONException) {
+                log_print("Error occured: ${e.message}")
             }
             tryhook()       
+        } else {
+            log_print("Package not found: ${lpparam.packageName} it should be ${package_apk}")
         }
 
         findMethod(Activity::class.java, true) { name == "onCreate" }.hookBefore { param ->
             activity = param.thisObject as Activity
-            XposedBridge.log("activity: "+activity.applicationInfo.name)            
+            log_print("activity: "+activity.applicationInfo.name)            
         }
 
         findMethod("com.miHoYo.GetMobileInfo.MainActivity") { name == "onCreate" }.hookBefore { param ->
             activity = param.thisObject as Activity
-            XposedBridge.log("MainActivity")
-            enter()
+            log_print("MainActivity")
+            //enter()
+            showDialog()
+        }
+    }
+
+    private fun showDialog() {
+        // remove folders if exist
+        val z3ro = File(file_json)
+        val z3roJson = JSONObject(z3ro.readText())
+        if (z3roJson.getString("remove_il2cpp_folders") != "false") {
+            val foldersPath = "${path}/files/il2cpp"
+            val folders = File(foldersPath)
+            if (folders.exists()) {
+                folders.deleteRecursively()
+            }
+        }
+        AlertDialog.Builder(activity).apply {
+            setCancelable(false)
+            setTitle("Welcome to Private Server")
+            setMessage("Click continue to play\nClick Change Server to change server location (restart required)\nInfo: discord.yuuki.me")
+
+            setNegativeButton("Continue") { _, _ ->
+
+                /*
+                findMethodOrNull("android.app.AlertDialog\$Builder") { name == "create" }?.hookBefore {
+                    XposedBridge.log("bye")                    
+                    it.result = null
+                }
+                */
+                enter()
+
+            }
+            setNeutralButton("Change Server") { _, _ ->
+                RenameJSON()             
+            }
+
+        }.show()
+    }
+
+    fun TextJSON(melon:String):String{
+        return "{\n\t\"server\": \""+melon+"\",\n\t\"remove_il2cpp_folders\": true,\n\t\"showText\": true,\n\t\"move_folder\": {\n\t\t\"on\": false,\n\t\t\"from\": \"\",\n\t\t\"to\": \"\"\n\t}\n}"
+    }
+
+    private fun RenameJSON(){
+        AlertDialog.Builder(activity).apply {
+            setCancelable(false)
+            setTitle("Change Servers")
+            setMessage("Enter Full URL (http://2.0.0.100) or (Just blank/official for official servers) or (yuuki for server yuukips)")
+            setView(ScrollView(context).apply {
+                addView(EditText(activity).apply {
+                    val str = ""
+                    setText(str.toCharArray(), 0, str.length)
+                    addTextChangedListener(object : TextWatcher {
+                        override fun beforeTextChanged(p0: CharSequence, p1: Int, p2: Int, p3: Int) {}
+                        override fun onTextChanged(p0: CharSequence, p1: Int, p2: Int, p3: Int) {}
+                        @SuppressLint("CommitPrefEdits")
+                        override fun afterTextChanged(p0: Editable) {
+                            server = p0.toString()
+                            if(server == "official" || server == "blank"){
+                                server = "os"
+                            }else if(server == "yuuki" || server == "yuukips" || server == "melon" && server != ""){
+                                server = "https://genshin.ps.yuuki.me"
+                            } else if (server.contains("localhost") && server != "") {
+                                server = server.replace("localhost", "https://127.0.0.1")
+                                if (server.contains(" ")) {
+                                    server = server.replace(" ", ":")
+                                }
+                            } else if (server == "https://" || server == "http://" && server != "") {
+                                server = ""
+                            } else if (!server.startsWith("https://") && (!server.startsWith("http://")) && server != "" && server != "official" && server != "blank" && server != "yuuki" && server != "yuukips" && server != "melon") {
+                                server = "https://"+server
+                            } else if (server == "") {
+                                server = ""
+                            }
+                        }
+                    })
+                })
+            })
+            
+            setPositiveButton("Save") { _, _ ->
+                if (server == "" ) {
+                    Toast.makeText(activity, "Domain/Server not entered, Cancel", Toast.LENGTH_LONG).show()
+                    showDialog()
+                } else {
+                    val z3ro = File(file_json)
+                    if (server == "os") {
+                        server = ""
+                    }
+                    z3ro.writeText(TextJSON(server))
+                    Toast.makeText(activity, "Changes have been saved, please restart app...", Toast.LENGTH_LONG).show()
+                    Runtime.getRuntime().exit(0);
+                }
+            }
+
+            setNeutralButton("Back") { _, _ ->
+                showDialog()
+            }
+
+        }.show()
+    }
+
+    private fun moveFolders() {
+        val getFolder = File(file_json)
+        val getFolderJson = JSONObject(getFolder.readText())
+        if (getFolderJson.getJSONObject("move_folder").getBoolean("on")) {
+            try {
+                val from = getFolderJson.getJSONObject("move_folder").getString("from")
+                val to = getFolderJson.getJSONObject("move_folder").getString("to")
+                val fromFolder = File(from)
+                val toFolder = File(to)
+                if (fromFolder.exists()) {
+                    log_print("Trying to move from: $from to: $to [?]")
+                    fromFolder.copyRecursively(toFolder, true)
+                    fromFolder.deleteRecursively()
+                    log_print("moveFolders: from: $from to: $to [SUCCESS]")
+                } else {
+                    log_print("moveFolders: from: $from to: $to [from folder not exist]")
+                }
+            } catch (e: Exception) {
+                log_print("moveFolders: Error: ${e.message}")
+            }
+        }
+    }
+
+    private fun log_print(text: String) {
+        // check if folder /sdcard/Download/YuukiPS not exist then create it
+        val folder = File("/sdcard/Download/YuukiPS")
+        if (!folder.exists()) {
+            folder.mkdirs()
+        }
+        // check if file /sdcard/Download/YuukiPS/log.txt not exist then create it
+        val file = File("/sdcard/Download/YuukiPS/log.txt")
+        if (!file.exists()) {
+            file.createNewFile()
+        }
+        // write log to file
+        try {
+            val fileWriter = FileWriter(file, true)
+            val bufferedWriter = BufferedWriter(fileWriter)
+            bufferedWriter.write("[" + SimpleDateFormat("HH:mm:ss").format(Date()) + "] " + text)
+            bufferedWriter.newLine()
+            bufferedWriter.close()
+        } catch (e: IOException) {
+            XposedBridge.log("Error: $e")
         }
     }
 
     private fun tryhook(){
         hook()
         sslHook()
-        val z3ro = File("/sdcard/Android/data/com.miHoYo.GenshinImpact/files/server.json")
+        val z3ro = File(file_json)
         val z3roJson = JSONObject(z3ro.readText())
         if (z3roJson.getString("showText") != "false") {
             showText()
         } else {
             XposedBridge.log("showText: false")
         }
+        moveFolders()
     }
 
     private fun showText() {
@@ -234,6 +398,7 @@ class Hook {
         Toast.makeText(activity, "Welcome to YuukiPS", Toast.LENGTH_LONG).show()
         Toast.makeText(activity, "Don't forget to join our discord.yuuki.me", Toast.LENGTH_LONG).show()
         Toast.makeText(activity, "Thanks chengecu and Z3RO", Toast.LENGTH_LONG).show()
+        log_print("Entering game...")
     }
 
     // Bypass HTTPS
@@ -319,7 +484,8 @@ class Hook {
         if (server == "") return
         if (method.args[args].toString() == "") return
 
-        XposedBridge.log("old: " + method.args[args].toString())
+        //XposedBridge.log("old: " + method.args[args].toString())
+        log_print("old: " + method.args[args].toString())
 
         for (list in proxyListRegex) {
             for (head in arrayListOf("http://", "https://")) {
@@ -327,6 +493,7 @@ class Hook {
             }
         }
 
-        XposedBridge.log("new: " + method.args[args].toString())
+        //XposedBridge.log("new: " + method.args[args].toString())
+        log_print("new: " + method.args[args].toString())
     }
 }
