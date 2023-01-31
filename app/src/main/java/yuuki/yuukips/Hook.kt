@@ -257,11 +257,6 @@ class Hook {
     "server": "$melon",
     "remove_il2cpp_folders": true,
     "showText": true,
-    "move_folder": {
-        "on": false,
-        "from": "",
-        "to": ""
-    },
     "remove_file": {
         "on": false,
         "path": ""
@@ -332,25 +327,6 @@ class Hook {
         }.show()
     }
 
-    private fun moveFolders() {
-        try {
-            val getFolderJson = JSONObject(File(file_json).readText()).getJSONObject("move_folder")
-            val from = getFolderJson.getString("from")
-            val to = getFolderJson.getString("to")
-            val fromFolder = File(from)
-            val toFolder = File(to)
-            if (fromFolder.exists() && fromFolder.isDirectory) {
-                fromFolder.copyRecursively(toFolder, true)
-                fromFolder.deleteRecursively()
-                log_print("moveFolders: from: $from to: $to [SUCCESS]", true)
-            } else {
-                log_print("moveFolders: from: $from to: $to [from folder not exist or not a directory]", true)
-            }
-        } catch (e: Exception) {
-            log_print("moveFolders: Error: ${e.message}", true)
-        }
-    }
-
     private fun removeFile() {
         try {
             val json = JSONObject(File(file_json).readText()).getJSONObject("remove_file")
@@ -413,12 +389,6 @@ class Hook {
             showText()
         } else {
             log_print("showText: false", true)
-        }
-        val move = z3roJson.getJSONObject("move_folder")
-        if (move.getBoolean("on")) {
-            moveFolders()
-        } else {
-            log_print("moveFolders: [OFF]", true)
         }
         removeFile()
     }
