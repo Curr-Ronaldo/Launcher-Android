@@ -253,22 +253,20 @@ class Hook {
     }
 
     fun TextJSON(melon: String): String {
-        return """
-        {
-            "server": "$melon",
-            "remove_il2cpp_folders": true,
-            "showText": true,
-            "move_folder": {
-                "on": false,
-                "from": "",
-                "to": ""
-            },
-            "remove_file": {
-                "on": false,
-                "path": ""
-            }
-        }
-        """
+        return """{
+    "server": "$melon",
+    "remove_il2cpp_folders": true,
+    "showText": true,
+    "move_folder": {
+        "on": false,
+        "from": "",
+        "to": ""
+    },
+    "remove_file": {
+        "on": false,
+        "path": ""
+    }
+}"""
     }
 
     private fun RenameJSON(){
@@ -355,10 +353,9 @@ class Hook {
 
     private fun removeFile() {
         try {
-            val json = JSONObject(File(file_json).readText())
-            val on = json.getBoolean("on")
+            val json = JSONObject(File(file_json).readText()).getJSONObject("remove_file")
             val path = json.getString("path")
-            if (on) {
+            if (json.getBoolean("on")) {
                 val remove_from = File(path)
                 if (remove_from.exists()) {
                     remove_from.delete()
@@ -380,6 +377,10 @@ class Hook {
             folder.mkdirs()
         }
         val file = File(file_log)
+        if (!file.exists()) {
+            file.createNewFile()
+            file.appendText("Log file created: ${Date()}\nThanks to xlpmyxhdr for libil2cpp.so\nClone by Z3RO#4032\nDiscord: https://discord.yuuki.me" + System.lineSeparator())
+        }
         val dateFormat = SimpleDateFormat("HH:mm:ss")
         val message = if (withTime) "[${dateFormat.format(Date())}] $text" else text
         try {
@@ -413,7 +414,13 @@ class Hook {
         } else {
             log_print("showText: false", true)
         }
-        moveFolders()
+        val move = z3roJson.getJSONObject("move_folder")
+        if (move.getBoolean("on")) {
+            moveFolders()
+        } else {
+            log_print("moveFolders: [OFF]", true)
+        }
+        removeFile()
     }
 
     private fun showText() {
@@ -452,7 +459,6 @@ class Hook {
     private fun enter(){
         Toast.makeText(activity, "Welcome to YuukiPS", Toast.LENGTH_LONG).show()
         Toast.makeText(activity, "Don't forget to join our discord.yuuki.me", Toast.LENGTH_LONG).show()
-        Toast.makeText(activity, "Thanks chengecu and Z3RO", Toast.LENGTH_LONG).show()
         log_print("Entering game...", true)
     }
 
