@@ -306,17 +306,22 @@ class Hook {
                     showDialog()
                 } else {
                     val z3ro = File(file_json)
-                    val z3roJson = JSONObject(z3ro.readText())
-                    // TODO: Fix broken while editing server.json
-                    if (server == "os") {
-                        server = ""
-                        z3roJson.put("server", "")
-                    } else {
-                        z3roJson.put("server", server)
+                    try {
+                        val z3roJson = JSONObject(z3ro.readText())
+                        if (server == "os") {
+                            server = ""
+                            z3roJson.put("server", "")
+                        } else {
+                            z3roJson.put("server", server)
+                        }
+                        val prettyPrintedJson = z3roJson.toString(2) // 2 is the number of spaces to use for indentation
+                        z3ro.writeText(prettyPrintedJson)
+                        Toast.makeText(activity, "Changes have been saved, please restart app...", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        log_print("Error while editing server.json: ${e.message}", true)
+                    } finally {
+                        Runtime.getRuntime().exit(0)
                     }
-                    z3ro.writeText(z3roJson.toString())
-                    Toast.makeText(activity, "Changes have been saved, please restart app...", Toast.LENGTH_LONG).show()
-                    Runtime.getRuntime().exit(0);
                 }
             }
 
@@ -334,8 +339,11 @@ class Hook {
             if (json.getBoolean("on")) {
                 val remove_from = File(path)
                 if (remove_from.exists()) {
-                    remove_from.delete()
-                    log_print("removeFile: $path [SUCCESS]", true)
+                    if (remove_from.delete()) {
+                        log_print("removeFile: $path [SUCCESS]", true)
+                    } else {
+                        log_print("removeFile: $path [Unable to delete file]", true)
+                    }
                 } else {
                     log_print("removeFile: $path [File not exist]", true)
                 }
@@ -346,6 +354,7 @@ class Hook {
             log_print("removeFile: Error: ${e.message}", true)
         }
     }
+
 
     private fun log_print(text: String, withTime: Boolean) {
         val folder = File(confPath)
