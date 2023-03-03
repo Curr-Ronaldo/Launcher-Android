@@ -58,8 +58,8 @@ class Hook {
 
     // just for login
     private val package_apk = "com.z3ro.YuukiPS"
-    private val path = "/sdcard/Android/data/${package_apk}"
-    private val confPath = "/sdcard/Download/YuukiPS"
+    private val path = "/data/user/0/${package_apk}"
+    private val confPath = "/data/user/0/${package_apk}"
     private val file_json = "${confPath}/server.json"
     private val file_log = "${confPath}/log.txt"
     private val file_process = "${confPath}/log_process.txt"
