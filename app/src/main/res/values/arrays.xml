@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <array name="need_module">
-        <item>com.miHoYo.YuukiPS</item>
+        <item>com.z3ro.YuukiPS</item>
     </array>
 </resources>

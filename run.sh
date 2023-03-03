@@ -10,6 +10,13 @@ bye() {
 # change to script directory
 cd $(pwd)
 
+if [ -z "$ANDROID_HOME" ]; then
+    echo "Please set ANDROID_HOME to your Android SDK path"
+    echo "Example: export ANDROID_HOME=/home/username/Android/Sdk"
+    echo "Example: export ANDROID_HOME=C:\Users\username\AppData\Local\Android\Sdk"
+    bye "ANDROID_HOME is not set" 1
+fi
+
 echo "Create Proxy APK"
 ./gradlew assembleRelease || bye "Failed to create Proxy APK" 1
 

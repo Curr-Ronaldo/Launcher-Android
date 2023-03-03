@@ -52,13 +52,17 @@ import java.io.IOException
 import java.util.Date
 import java.text.SimpleDateFormat
 import org.json.JSONException
+import android.os.Build
 
 class Hook {
 
     // just for login
-    private val package_apk = "com.miHoYo.YuukiPS"
+    private val package_apk = "com.z3ro.YuukiPS"
     private val path = "/sdcard/Android/data/${package_apk}"
-    private val file_json = "/sdcard/Download/YuukiPS/server.json"
+    private val confPath = "/sdcard/Download/YuukiPS"
+    private val file_json = "${confPath}/server.json"
+    private val file_log = "${confPath}/log.txt"
+    private val file_process = "${confPath}/log_process.txt"
     private val proxyListRegex = arrayListOf( 
         // CN
         "dispatchcnglobal.yuanshen.com",
@@ -161,14 +165,22 @@ class Hook {
     @SuppressLint("WrongConstant", "ClickableViewAccessibility")
     fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
 
-        log_print("\n\n=====================================\nDATE: ${Date()}\n=====================================\nNew Log")
+        log_print("\n\n=====================================\nDATE: ${Date()}\n=====================================\n", false)
 
-        log_print("Hi Yuuki")
-        log_print("Load: "+lpparam.packageName)
+        log_print("Brand: ${Build.BRAND}", true)
+        log_print("Device: ${Build.DEVICE}", true)
+        log_print("Model: ${Build.MODEL}", true)
+        log_print("Product: ${Build.PRODUCT}", true)
+        log_print("Manufacturer: ${Build.MANUFACTURER}", true)
+        log_print("Android: ${Build.VERSION.RELEASE}", true)
+        log_print("SDK: ${Build.VERSION.SDK_INT}", true)
+        log_print("\n", false)
+        log_print("Hi Yuuki", true)
+        log_print("Load: "+lpparam.packageName, true)
 
         if (lpparam.packageName == "${package_apk}") {
 
-            log_print("Package found: ${lpparam.packageName}")
+            log_print("Package found: ${lpparam.packageName}", true)
             EzXHelperInit.initHandleLoadPackage(lpparam) // idk what this?
 
             // json for get server
@@ -177,30 +189,30 @@ class Hook {
                 if (z3ro.exists()) {
                     val z3roJson = JSONObject(z3ro.readText())
                     server = z3roJson.getString("server")
-                    log_print("server : $server")
+                    log_print("server : $server", true)
                 } else {
-                    log_print("server.json not found.")
+                    log_print("server.json not found.", true)
                     server = "https://genshin.ps.yuuki.me"
                     z3ro.createNewFile()
                     z3ro.writeText(TextJSON(server))
-                    log_print("New server.json created")
+                    log_print("New server.json created", true)
                 }
             } catch (e: JSONException) {
-                log_print("Error occured: ${e.message}")
+                log_print("Error occured: ${e.message}", true)
             }
             tryhook()       
         } else {
-            log_print("Package not found: ${lpparam.packageName} it should be ${package_apk}")
+            log_print("Package not found: ${lpparam.packageName} it should be ${package_apk}", true)
         }
 
         findMethod(Activity::class.java, true) { name == "onCreate" }.hookBefore { param ->
             activity = param.thisObject as Activity
-            log_print("activity: "+activity.applicationInfo.name)            
+            log_print("activity: "+activity.applicationInfo.name, true)
         }
 
         findMethod("com.miHoYo.GetMobileInfo.MainActivity") { name == "onCreate" }.hookBefore { param ->
             activity = param.thisObject as Activity
-            log_print("MainActivity")
+            log_print("MainActivity", true)
             //enter()
             showDialog()
         }
@@ -240,8 +252,16 @@ class Hook {
         }.show()
     }
 
-    fun TextJSON(melon:String):String{
-        return "{\n\t\"server\": \""+melon+"\",\n\t\"remove_il2cpp_folders\": true,\n\t\"showText\": true,\n\t\"move_folder\": {\n\t\t\"on\": false,\n\t\t\"from\": \"\",\n\t\t\"to\": \"\"\n\t}\n}"
+    fun TextJSON(melon: String): String {
+        return """{
+    "server": "$melon",
+    "remove_il2cpp_folders": true,
+    "showText": true,
+    "remove_file": {
+        "on": false,
+        "path": ""
+    }
+}"""
     }
 
     private fun RenameJSON(){
@@ -259,19 +279,19 @@ class Hook {
                         @SuppressLint("CommitPrefEdits")
                         override fun afterTextChanged(p0: Editable) {
                             server = p0.toString()
-                            if(server == "official" || server == "blank"){
+                            if (server == "official" || server == "blank") {
                                 server = "os"
-                            }else if(server == "yuuki" || server == "yuukips" || server == "melon" && server != ""){
+                            } else if (server == "yuuki" || server == "yuukips" || server == "melon") {
                                 server = "https://genshin.ps.yuuki.me"
-                            } else if (server.contains("localhost") && server != "") {
+                            } else if (server.contains("localhost")) {
                                 server = server.replace("localhost", "https://127.0.0.1")
                                 if (server.contains(" ")) {
                                     server = server.replace(" ", ":")
                                 }
-                            } else if (server == "https://" || server == "http://" && server != "") {
+                            } else if (!server.startsWith("https://") && !server.startsWith("http://")) {
+                                server = "https://" + server
+                            } else if (server == "https://" || server == "http://") {
                                 server = ""
-                            } else if (!server.startsWith("https://") && (!server.startsWith("http://")) && server != "" && server != "official" && server != "blank" && server != "yuuki" && server != "yuukips" && server != "melon") {
-                                server = "https://"+server
                             } else if (server == "") {
                                 server = ""
                             }
@@ -286,12 +306,22 @@ class Hook {
                     showDialog()
                 } else {
                     val z3ro = File(file_json)
-                    if (server == "os") {
-                        server = ""
+                    try {
+                        val z3roJson = JSONObject(z3ro.readText())
+                        if (server == "os") {
+                            server = ""
+                            z3roJson.put("server", "")
+                        } else {
+                            z3roJson.put("server", server)
+                        }
+                        val prettyPrintedJson = z3roJson.toString(2) // 2 is the number of spaces to use for indentation
+                        z3ro.writeText(prettyPrintedJson)
+                        Toast.makeText(activity, "Changes have been saved, please restart app...", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        log_print("Error while editing server.json: ${e.message}", true)
+                    } finally {
+                        Runtime.getRuntime().exit(0)
                     }
-                    z3ro.writeText(TextJSON(server))
-                    Toast.makeText(activity, "Changes have been saved, please restart app...", Toast.LENGTH_LONG).show()
-                    Runtime.getRuntime().exit(0);
                 }
             }
 
@@ -302,47 +332,58 @@ class Hook {
         }.show()
     }
 
-    private fun moveFolders() {
-        val getFolder = File(file_json)
-        val getFolderJson = JSONObject(getFolder.readText())
-        if (getFolderJson.getJSONObject("move_folder").getBoolean("on")) {
-            try {
-                val from = getFolderJson.getJSONObject("move_folder").getString("from")
-                val to = getFolderJson.getJSONObject("move_folder").getString("to")
-                val fromFolder = File(from)
-                val toFolder = File(to)
-                if (fromFolder.exists()) {
-                    log_print("Trying to move from: $from to: $to [?]")
-                    fromFolder.copyRecursively(toFolder, true)
-                    fromFolder.deleteRecursively()
-                    log_print("moveFolders: from: $from to: $to [SUCCESS]")
+    private fun removeFile() {
+        try {
+            val json = JSONObject(File(file_json).readText()).getJSONObject("remove_file")
+            val path = json.getString("path")
+            if (json.getBoolean("on")) {
+                val remove_from = File(path)
+                if (remove_from.exists()) {
+                    if (remove_from.delete()) {
+                        log_print("removeFile: $path [SUCCESS]", true)
+                    } else {
+                        log_print("removeFile: $path [Unable to delete file]", true)
+                    }
                 } else {
-                    log_print("moveFolders: from: $from to: $to [from folder not exist]")
+                    log_print("removeFile: $path [File not exist]", true)
                 }
-            } catch (e: Exception) {
-                log_print("moveFolders: Error: ${e.message}")
+            } else {
+                log_print("removeFile: [OFF]", true)
             }
+        } catch (e: Exception) {
+            log_print("removeFile: Error: ${e.message}", true)
         }
     }
 
-    private fun log_print(text: String) {
-        // check if folder /sdcard/Download/YuukiPS not exist then create it
-        val folder = File("/sdcard/Download/YuukiPS")
+
+    private fun log_print(text: String, withTime: Boolean) {
+        val folder = File(confPath)
         if (!folder.exists()) {
             folder.mkdirs()
         }
-        // check if file /sdcard/Download/YuukiPS/log.txt not exist then create it
-        val file = File("/sdcard/Download/YuukiPS/log.txt")
+        val file = File(file_log)
         if (!file.exists()) {
             file.createNewFile()
+            file.appendText("Log file created: ${Date()}\nThanks to xlpmyxhdr for libil2cpp.so\nClone by Z3RO#4032\nDiscord: https://discord.yuuki.me" + System.lineSeparator())
         }
-        // write log to file
+        val dateFormat = SimpleDateFormat("HH:mm:ss")
+        val message = if (withTime) "[${dateFormat.format(Date())}] $text" else text
         try {
-            val fileWriter = FileWriter(file, true)
-            val bufferedWriter = BufferedWriter(fileWriter)
-            bufferedWriter.write("[" + SimpleDateFormat("HH:mm:ss").format(Date()) + "] " + text)
-            bufferedWriter.newLine()
-            bufferedWriter.close()
+            file.appendText(message + System.lineSeparator())
+        } catch (e: IOException) {
+            XposedBridge.log("Error: $e")
+        }
+    }
+
+    private fun log_process(text: String) {
+        val folder = File(confPath)
+        if (!folder.exists()) {
+            folder.mkdirs()
+        }
+        val file = File(file_process)
+        val dateFormat = SimpleDateFormat("HH:mm:ss")
+        try {
+            file.appendText("[${dateFormat.format(Date())}] $text" + System.lineSeparator())
         } catch (e: IOException) {
             XposedBridge.log("Error: $e")
         }
@@ -356,9 +397,9 @@ class Hook {
         if (z3roJson.getString("showText") != "false") {
             showText()
         } else {
-            XposedBridge.log("showText: false")
+            log_print("showText: false", true)
         }
-        moveFolders()
+        removeFile()
     }
 
     private fun showText() {
@@ -375,13 +416,14 @@ class Hook {
                 if (server == "") {
                     paint2.color = Color.RED
                     showServer = "You connecting to Official Server"
+                    log_print("showText: You connecting to Official Server", true)
                 } else {
                     paint2.color = Color.GREEN
                     showServer = "Server: $server"
+                    log_print("showText: Server: $server", true)
                 }
                 paint2.textSize = 40f
                 canvas.drawText(showServer, canvas.width / 2f, canvas.height / 2f + 100, paint2)
-                
             }
         }
         // Broken UHHHHHHHH
@@ -391,14 +433,12 @@ class Hook {
                 canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
             }
         }
-        
     }
 
     private fun enter(){
         Toast.makeText(activity, "Welcome to YuukiPS", Toast.LENGTH_LONG).show()
         Toast.makeText(activity, "Don't forget to join our discord.yuuki.me", Toast.LENGTH_LONG).show()
-        Toast.makeText(activity, "Thanks chengecu and Z3RO", Toast.LENGTH_LONG).show()
-        log_print("Entering game...")
+        log_print("Entering game...", true)
     }
 
     // Bypass HTTPS
@@ -485,7 +525,7 @@ class Hook {
         if (method.args[args].toString() == "") return
 
         //XposedBridge.log("old: " + method.args[args].toString())
-        log_print("old: " + method.args[args].toString())
+        log_process("old: " + method.args[args].toString())
 
         for (list in proxyListRegex) {
             for (head in arrayListOf("http://", "https://")) {
@@ -494,6 +534,6 @@ class Hook {
         }
 
         //XposedBridge.log("new: " + method.args[args].toString())
-        log_print("new: " + method.args[args].toString())
+        log_process("new: " + method.args[args].toString())
     }
 }
