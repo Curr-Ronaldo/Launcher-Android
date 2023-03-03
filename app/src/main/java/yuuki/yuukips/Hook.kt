@@ -57,7 +57,7 @@ import android.os.Build
 class Hook {
 
     // just for login
-    private val package_apk = "com.z3ro.YuukiPS"
+    private val package_apk = "com.miHoYo.GenshinImpact"
     private val path = "/data/user/0/${package_apk}"
     private val confPath = "/data/user/0/${package_apk}"
     private val file_json = "${confPath}/server.json"
