@@ -454,12 +454,12 @@ class Hook {
         }
         // WebView Hook
         arrayListOf(
-            "android.webkit.WebViewClient",
-            "cn.sharesdk.framework.g",
-            "com.facebook.internal.WebDialog\$DialogWebViewClient",
-            "com.geetest.sdk.dialog.views.GtWebView\$c",
-            "com.miHoYo.sdk.webview.common.view.ContentWebView\$6"
-        ).forEach {
+                    "android.webkit.WebViewClient",
+                    // "cn.sharesdk.framework.g",
+                    // "com.facebook.internal.WebDialog\$DialogWebViewClient",
+                    "com.geetest.sdk.dialog.views.GtWebView\$c",
+                    "com.miHoYo.sdk.webview.common.view.ContentWebView\$6"
+            ).forEach {
             findMethodOrNull(it) { name == "onReceivedSslError" && parameterTypes[1] == SslErrorHandler::class.java }?.hookBefore { param ->
                 (param.args[1] as SslErrorHandler).proceed()
             }
