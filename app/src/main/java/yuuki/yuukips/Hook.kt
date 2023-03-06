@@ -88,6 +88,7 @@ class Hook {
     )
     
     private lateinit var server: String
+    private lateinit var serversdklog: String
     private lateinit var showServer: String
     private lateinit var textJson: String
 
