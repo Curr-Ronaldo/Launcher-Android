@@ -27,7 +27,7 @@ import android.text.Editable
 
 class Hook {
     // URL Server
-    //private var server = "https://sdk.mihoyu.cn"
+    private var server = "https://sdk.mihoyu.cn"
 
     // App
     private val package_apk = "com.miHoYo.Yuanshen"
@@ -38,12 +38,8 @@ class Hook {
     //private lateinit var server: String
     private lateinit var textJson: String
 
-    
-
     //  List Domain v1
     private val domain = Pattern.compile("http(s|)://.*?\\.(hoyoverse|mihoyo|yuanshen|mob)\\.com")
-
-    
 
     //  List Domain v2
     private val more_domain =
@@ -114,6 +110,11 @@ class Hook {
     @SuppressLint("WrongConstant", "ClickableViewAccessibility")
     fun handleLoadPackage(i: XC_LoadPackage.LoadPackageParam) {
         XposedBridge.log("Load: " + i.packageName) // debug
+
+        // Ignore other apps
+        if (i.packageName != "${package_apk}") {
+            return
+        }
         val z3ro = File(file_json)
         try {
                 if (z3ro.exists()) {
@@ -126,26 +127,15 @@ class Hook {
                 }
             } catch (e: JSONException) {
             }
-
-        // Ignore other apps
-        if (i.packageName != "${package_apk}") {
-            return
-        }
-
         // Startup
         EzXHelperInit.initHandleLoadPackage(i)
-
         // Hook Activity
         findMethod(injek_activity) { name == "onCreate" }.hookBefore { param ->
             activity = param.thisObject as Activity
-
-            // Enter
+            Injek()
             Enter()
-
-            // Injek here bed
         }
-
-        // Injek here good
+        Injek()
         Enter()
     }
 
@@ -174,22 +164,14 @@ class Hook {
                 Injek()
             }
             setNegativeButton("更改服务器") { _, _ ->
-                //Injek()
                 RenameJSON()             
-            }
-            setNeutralButton("前往下载资源") { _, _ ->
-            Toast.makeText(activity, "加入的服务器地址: $server", Toast.LENGTH_LONG).show()
-            server = "https://sdk.mihoyu.cn"
-                Injek()
             }
         }.show()
     }
 
-
     fun TextJSON(melon:String):String{
         return "{\n\t\"server\": \""+melon+"\",\n\t\"remove_il2cpp_folders\": true,\n\t\"showText\": true,\n\t\"move_folder\": {\n\t\t\"on\": false,\n\t\t\"from\": \"\",\n\t\t\"to\": \"\"\n\t}\n}"
     }
-
 
     private fun RenameJSON(){
         AlertDialog.Builder(activity).apply {
@@ -243,6 +225,7 @@ class Hook {
             }
         }.show()
     }
+
     // Bypass HTTPS
     private fun injekssl() {
         // OkHttp3 Hook
@@ -352,72 +335,25 @@ class Hook {
 
     // Rename
     private fun replaceUrl(method: XC_MethodHook.MethodHookParam, args: Int) {
-
         // skip if server if empty
         if (server == "") return
-
         var melon = method.args[args].toString()
-
         // skip if string is empty
         if (melon == "") return
-
-        // skip config areal (BAD 3.5)
-        // if (melon.startsWith("[{\"area\":")) return
-
         // skip for support download game data
         if (melon.startsWith("autopatchhk.yuanshen.com")) return
         if (melon.startsWith("autopatchcn.yuanshen.com")) return
-
-        // rename package name
-        /*
-        if (melon.startsWith(package_apk_real)) {
-            method.args[args] = melon.replace(package_apk_real, package_apk)
-            log_print("rename_v1 " + melon + " > " + method.args[args] + " ")
-        }
-        */
-
         // normal edit 1
         for (list in more_domain) {
             for (head in arrayListOf("http://", "https://")) {
                 method.args[args] = method.args[args].toString().replace(head + list, server)
-                // log_print("rename_v1 " + melon + " > " + method.args[args])
             }
         }
-
         // normal edit 2
         val m = domain.matcher(melon)
         if (m.find()) {
             method.args[args] = m.replaceAll(server)
-            // log_print("rename_v2 " + melon + " > " + method.args[args])
         } else {
-            // log_print("skip_rename_v2 " + melon + " > " + method.args[args])
-        }
-    }
-
-    private fun log_print(text: String) {
-        try {
-            // check if file not exist then create it
-            val file = File(activity.getExternalFilesDir(null), "log-yuuki.txt")
-            if (!file.exists()) {
-                file.createNewFile()
-            }
-
-            // write log to file
-            val fileWriter = FileWriter(file, true)
-            val bufferedWriter = BufferedWriter(fileWriter)
-            var mel = "[" + SimpleDateFormat("HH:mm:ss").format(Date()) + "] " + text
-            XposedBridge.log(mel) // debug
-            bufferedWriter.write(mel)
-            bufferedWriter.newLine()
-            bufferedWriter.close()
-        } catch (e: IOException) {
-            Toast.makeText(
-                            activity,
-                            "There is no storage space permission, please allow it first",
-                            Toast.LENGTH_LONG
-                    )
-                    .show()
-            activity.finish()
         }
     }
 }
